@@ -5,7 +5,7 @@ html { scroll-padding-block: calc(var(--preview-height) + var(--space-xl)) calc(
 body { margin: 0; padding-bottom: calc(var(--dock-height,var(--layout-dockHeight)) + env(safe-area-inset-bottom)); background: var(--surface); color: var(--text); font: var(--type-body)/1.65 var(--font-sans); -webkit-text-size-adjust: 100%; }
 body::before { content: ''; position: fixed; inset: 0; z-index: 90; pointer-events: none; background-image: var(--grain-image); background-repeat: repeat; opacity: var(--grain-opacity); mix-blend-mode: multiply; }
 html[data-color-scheme="dark"] body::before { mix-blend-mode: screen; }
-h1,h2,p { margin: 0; }
+h1,h2,h3,p { margin: 0; }
 button,input,select,textarea { font: inherit; }
 button,a,input,select,textarea { -webkit-tap-highlight-color: transparent; touch-action: manipulation; outline-offset: var(--space-xxs); }
 :focus-visible { outline: var(--layout-strongBorder) solid var(--blueText); }
@@ -32,7 +32,7 @@ h1 > span { display: block; }
 .workspace { display: grid; grid-template-columns: minmax(0,1.12fr) minmax(0,1fr); gap: var(--space-section); align-items: start; }
 .preview-panel { position: sticky; top: var(--space-md); min-width: 0; z-index: 20; background: var(--surface); padding-block: var(--space-xs) var(--space-md); }
 .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); margin-bottom: var(--space-sm); }
-.panel-heading h2 { font: inherit; font-size: var(--type-micro); letter-spacing: .07em; }
+.panel-heading h2 { font-family: var(--font-sans); font-size: var(--type-body); font-weight: 800; letter-spacing: -.025em; }
 .preview-label { font-size: var(--type-micro); color: var(--secondary); }
 .preview-label::before { content: '+'; margin-right: var(--space-xxs); color: var(--pinkText); font-weight: 900; }
 .preview-stage { padding-block: var(--space-xs); perspective: var(--layout-perspective); }
@@ -104,6 +104,15 @@ input[type="range"] { accent-color: var(--blue); min-width: 0; width: 100%; heig
 .how-to li > span { font: 800 var(--space-xxl)/1.2 var(--font-mono); color: var(--blueText); }
 .how-to strong { font-size: var(--type-body); }
 .how-to li p { font-size: var(--type-body); color: var(--secondary); margin-top: var(--space-xs); }
+.discord-link { text-decoration: none; }
+.header-discord { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-xs); min-height: var(--layout-touch); padding: var(--space-xs) var(--space-sm); border: var(--layout-border) solid var(--text); font-size: var(--type-body); font-weight: 700; white-space: nowrap; }
+.header-discord:hover { color: var(--surface); background: var(--text); }
+.feature-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--space-xxl) var(--space-section); margin-top: var(--space-section); }
+.feature-grid h3 { font-size: var(--type-body); font-weight: 800; }
+.feature-grid p { color: var(--secondary); font-size: var(--type-body); margin-top: var(--space-xs); }
+.community-section { padding-block: var(--space-wide) var(--space-giant); border-top: var(--layout-border) solid var(--text); }
+.community-section h2 { font-size: clamp(var(--space-section),8vw,var(--type-desktopSmall)); line-height: 1.1; letter-spacing: -.065em; margin-bottom: var(--space-xxl); }
+.community-section .button { min-width: var(--layout-compactWidth); }
 .site-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-xl); border-top: var(--layout-border) solid var(--text); padding-block: var(--space-xxl); }
 .site-footer > span:first-child { font-size: var(--type-body); font-weight: 800; }
 .site-footer p { font-size: var(--type-body); color: var(--secondary); }
@@ -124,8 +133,8 @@ dialog img { display: block; width: 100%; height: auto; }
   .brand-mark { font-size: var(--space-xl); }
   .header-label { display: none; }
   .intro { padding-block: var(--space-xl) var(--space-xxl); }
-  .headline-one { font-size: clamp(38px,12.8vw,var(--type-headingSmall)); }
-  .headline-two { font-size: clamp(58px,19.2vw,var(--type-headingLarge)); }
+  .headline-one { font-size: clamp(56px,18vw,var(--type-headingSmall)); }
+  .headline-two { font-size: clamp(34px,11.8vw,var(--type-headingLarge)); }
   .eyebrow { font-size: var(--type-micro); margin-bottom: var(--space-md); letter-spacing: .01em; }
   .intro-bottom { display: block; }
   .edition-note { display: none; }
@@ -144,8 +153,17 @@ dialog img { display: block; width: 100%; height: auto; }
   .save-buttons { gap: var(--space-xs); }
   #save-hint { font-size: var(--type-small); }
   .how-to { margin-top: var(--space-section); }
-  .how-to ol { grid-template-columns: 1fr; gap: var(--space-xl); }
-  .site-footer { display: block; }
+  .feature-grid { grid-template-columns: 1fr; gap: var(--space-xl); }
+  .discord-link { text-decoration: none; }
+.header-discord { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-xs); min-height: var(--layout-touch); padding: var(--space-xs) var(--space-sm); border: var(--layout-border) solid var(--text); font-size: var(--type-body); font-weight: 700; white-space: nowrap; }
+.header-discord:hover { color: var(--surface); background: var(--text); }
+.feature-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--space-xxl) var(--space-section); margin-top: var(--space-section); }
+.feature-grid h3 { font-size: var(--type-body); font-weight: 800; }
+.feature-grid p { color: var(--secondary); font-size: var(--type-body); margin-top: var(--space-xs); }
+.community-section { padding-block: var(--space-wide) var(--space-giant); border-top: var(--layout-border) solid var(--text); }
+.community-section h2 { font-size: clamp(var(--space-section),8vw,var(--type-desktopSmall)); line-height: 1.1; letter-spacing: -.065em; margin-bottom: var(--space-xxl); }
+.community-section .button { min-width: var(--layout-compactWidth); }
+.site-footer { display: block; }
   .site-footer p { margin-block: var(--space-md); }
   dialog { padding: var(--space-md); width: 94%; }
   .dialog-heading h2 { font-size: var(--type-body); }

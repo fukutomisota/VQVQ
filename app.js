@@ -24,6 +24,16 @@
 
   document.querySelectorAll('[data-community-name]').forEach((element) => { element.textContent = config.communityName; });
   document.title = `会員証をつくる | ${config.communityName}`;
+  // Navigation sends no card content. A new tab keeps the draft available.
+  try {
+    const invite = new URL(config.discordInviteUrl);
+    if (invite.protocol === 'https:' && ['discord.gg', 'discord.com'].includes(invite.hostname)) {
+      document.querySelectorAll('[data-discord-link]').forEach(link => {
+        link.href = invite.href;
+        link.hidden = false;
+      });
+    }
+  } catch { /* The generator remains usable if the invite is not configured. */ }
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
 
@@ -209,7 +219,7 @@
         link.href = url; link.download = filename(); document.body.append(link); link.click(); link.remove();
         // Keep the URL alive for mobile browsers that start the download later.
         setTimeout(() => URL.revokeObjectURL(url), 60_000);
-        $('save-status').textContent = 'ダウンロードを開始しました。保存できない場合は「画像を表示」をお試しください。';
+        $('save-status').textContent = '完成しました。あなたの会員証です。';
       } else {
         if (state.finishedUrl) URL.revokeObjectURL(state.finishedUrl);
         state.finishedUrl = URL.createObjectURL(blob);
