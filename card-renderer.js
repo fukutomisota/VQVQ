@@ -116,7 +116,7 @@
     h.rect(0,0,1600,1000,p.paper);h.header({rule:false});h.cropMarks();
     h.line(T.card.margin,188,(T.card.width-T.card.margin),188,p.ink,4);h.text('PERSON / 01',T.card.margin,210,T.type.cardMeta,p.ink,700,T.fonts.mono);
     h.name(v.name,{x:-16,y:258,w:1630,h:313},{size:T.type.cardName*1.3,min:T.type.cardNameMin,maxLines:2,color:p.ink});
-    h.rect(0,594,1600,74,p.primary);h.text(v.status||'INTERNET V-CHU KAI',T.card.margin,610,T.type.cardStrip,p.ink,900,T.fonts.mono);h.text('MEMBER / PRINT',1210,620,T.type.cardMeta,p.ink,700,T.fonts.mono);
+    h.rect(0,594,1600,74,p.primary);h.text(v.status||C.communityEnglish,T.card.margin,610,T.type.cardStrip,p.ink,900,T.fonts.mono);h.text('MEMBER / PRINT',1210,620,T.type.cardMeta,p.ink,700,T.fonts.mono);
     if(v.title)h.fit(v.title,{x:T.card.margin,y:700,w:1100,h:52},{size:T.type.cardTitleLarge,min:T.type.cardMinLarge,maxLines:1,weight:800});
     h.text('THINGS I LOVE',T.card.margin,770,T.type.cardLabel,p.muted,700,T.fonts.mono);
     h.fit(v.likes||'雑談 / ゲーム / すきなこと',{x:T.card.margin,y:807,w:1130,h:65},{size:T.type.cardDense,min:T.type.cardMin,weight:600});
