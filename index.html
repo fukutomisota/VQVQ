@@ -3,89 +3,67 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f7f6fc">
-  <meta name="description" content="名前と好きなものを入れて、自分だけの会員証を。ログイン不要で、スマホからPNG画像を作れます。">
+  <meta name="theme-color" content="#f4efe6">
+  <meta name="description" content="紙の質感と大きな文字。7つのスタイルから、自分だけの会員証をつくろう。ログイン不要・端末内でPNG保存。">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
-  <title>会員証をつくる</title>
-  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css">
-  <script src="./config.js" defer></script>
-  <script src="./app.js" defer></script>
+  <title>会員証をつくる | TACTILE TYPE</title>
+  <script src="./tokens.js?v=tactile-1"></script>
+  <link rel="icon" href="./favicon.svg?v=tactile-1" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css?v=tactile-1">
+  <script src="./config.js?v=tactile-1" defer></script>
+  <script src="./card-renderer.js?v=tactile-1" defer></script>
+  <script src="./app.js?v=tactile-1" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#editor">入力欄へ移動</a>
   <header class="site-header shell">
-    <a class="brand" href="./" aria-label="会員証ジェネレーターの最初へ">
-      <span class="brand-symbol" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M16 2v28M2 16h28M6 6l20 20M26 6L6 26"/></svg></span>
-      <span data-community-name>インターネットVちゅー会</span>
-    </a>
-    <span class="header-label">MEMBER CARD STUDIO</span>
+    <a class="brand" href="./" aria-label="会員証ジェネレーターの最初へ"><span class="brand-mark" aria-hidden="true">V*</span><span data-community-name>インターネットVちゅー会</span></a>
+    <span class="header-label">MEMBER CARD<br>PRINT STUDIO / 01</span>
   </header>
-
   <main class="shell">
     <section class="intro" aria-labelledby="page-title">
-      <p class="eyebrow"><span class="little-line" aria-hidden="true"></span> はじめましてを、1枚に。</p>
-      <h1 id="page-title">あなたらしい、<br class="mobile-break">会員証をつくろう<span class="title-dot">。</span></h1>
-      <p class="intro-copy">名前とすきなものを入れて、7つのスタイルから選ぶだけ。<br class="mobile-break">できた1枚で、ちょっと自己紹介。</p>
+      <p class="eyebrow">TACTILE TYPE / YOUR OWN IDENTITY</p>
+      <h1 id="page-title"><span class="headline-one">あなたらしい</span><span class="headline-two">会員証を。</span></h1>
+      <div class="intro-bottom"><p>名前とすきなことを、1枚に刷ろう。</p><span class="edition-note">NO LOGIN. JUST YOU.</span></div>
     </section>
-
     <div class="workspace">
       <section class="preview-panel" aria-labelledby="preview-heading">
-        <div class="panel-heading">
-          <h2 id="preview-heading"><span class="step-number">01</span> あなたの会員証</h2>
-          <span class="preview-label"><span aria-hidden="true"></span> プレビュー</span>
-        </div>
-        <div class="preview-stage">
-          <span class="stage-spark spark-one" aria-hidden="true">✳</span>
-          <span class="stage-spark spark-two" aria-hidden="true">✳</span>
-          <div class="card-holder">
-            <canvas id="card-canvas" width="1600" height="1000" role="img" aria-label="会員証のプレビュー" aria-describedby="card-summary">会員証のプレビューです。画像を表示できない場合は、下の説明をご確認ください。</canvas>
-          </div>
-          <p class="stage-note" id="style-caption">AESTHETIC × Y3K</p>
-        </div>
+        <div class="panel-heading"><h2 id="preview-heading">01 / YOUR CARD</h2><span class="preview-label">LIVE PREVIEW</span></div>
+        <div class="preview-stage"><div class="card-holder" id="card-holder"><canvas id="card-canvas" width="1600" height="1000" role="img" aria-label="会員証のプレビュー" aria-describedby="card-summary">会員証のプレビューです。</canvas></div></div>
+        <div class="preview-meta"><span id="style-caption">RISO POP</span><span>1600 × 1000 / PNG</span></div>
         <p id="card-summary" class="sr-only"></p>
-        <div class="preview-meta"><span>PNG / 1600 × 1000 px</span><span>何度でもつくり直せます</span></div>
-        <div class="save-actions">
-          <div class="save-buttons">
-            <button id="download-button" class="button button-primary" type="button" disabled aria-describedby="save-hint">
-              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v4h16v-4"/></svg><span>PNGを保存する</span>
-            </button>
-            <button id="show-button" class="button button-secondary" type="button" disabled>画像を表示</button>
-          </div>
-          <p id="save-hint">お名前を入れると保存できます。</p>
-        </div>
         <p id="save-status" class="status-message" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
-
-      <section id="editor" class="editor-panel" aria-labelledby="editor-heading" tabindex="-1">
-        <div class="panel-heading editor-heading"><h2 id="editor-heading"><span class="step-number">02</span> あなたのことを少し</h2><span class="optional-label">名前以外はお好みで</span></div>
+      <div class="edit-stack">
+        <section class="style-panel" aria-labelledby="style-heading"><div class="section-heading"><h2 id="style-heading"><span class="field-en">02 / PICK YOUR PRINT</span><span>スタイルを選ぶ</span></h2><span class="yellow-sticker">7 STYLES</span></div><fieldset class="style-field"><legend class="sr-only">会員証のスタイル</legend><div class="style-rail" id="style-rail"></div></fieldset><p class="field-help">横にスワイプして、7つの刷り上がりを見比べる。</p></section>
+        <section id="editor" class="editor-panel" aria-labelledby="editor-heading" tabindex="-1"><div class="section-heading"><h2 id="editor-heading"><span class="field-en">03 / MAKE IT YOURS</span><span>あなたのことを少し</span></h2></div><p class="form-intro">名前以外は、お好みで。</p>
         <form id="card-form" novalidate>
           <div class="field">
-            <label for="member-name">呼ばれたい名前 <span class="required-tag">必須</span></label>
+            <label for="member-name"><span class="field-en">DISPLAY NAME</span><span class="field-ja">呼ばれたい名前 <span class="required-tag">必須</span></span></label>
             <input id="member-name" name="member-name" type="text" maxlength="64" autocomplete="nickname" placeholder="例：ねむいねこ" required aria-describedby="name-help name-error">
             <p id="name-help" class="field-help">32文字まで。長い名前は文字サイズを調整します。</p>
             <p id="name-error" class="field-error" hidden></p>
           </div>
           <div class="field">
-            <label for="member-title">ひとこと肩書き</label>
+            <label for="member-title"><span class="field-en">YOUR TITLE</span><span class="field-ja">ひとこと肩書き</span></label>
             <input id="member-title" name="member-title" type="text" maxlength="36" placeholder="例：深夜にいます" aria-describedby="title-help title-error">
             <p id="title-help" class="field-help">18文字まで。自由な肩書きをどうぞ。</p>
             <p id="title-error" class="field-error" hidden></p>
           </div>
           <div class="field">
-            <label for="member-likes">すきなもの</label>
+            <label for="member-likes"><span class="field-en">THINGS YOU LOVE</span><span class="field-ja">すきなもの</span></label>
             <input id="member-likes" name="member-likes" type="text" maxlength="96" placeholder="例：雑談 / ゲーム / 音楽" aria-describedby="likes-help likes-error">
             <p id="likes-help" class="field-help">48文字まで。話のきっかけになりそうなこと。</p>
             <p id="likes-error" class="field-error" hidden></p>
           </div>
           <div class="field">
-            <label for="member-message">みんなにひとこと</label>
+            <label for="member-message"><span class="field-en">SAY HELLO</span><span class="field-ja">みんなにひとこと</span></label>
             <textarea id="member-message" name="member-message" rows="2" maxlength="120" placeholder="例：おすすめの曲、教えてください。" aria-describedby="message-help message-error"></textarea>
             <p id="message-help" class="field-help">60文字まで。改行は会員証の幅に合わせて調整します。</p>
             <p id="message-error" class="field-error" hidden></p>
           </div>
           <div class="field">
-            <label for="member-status">こんな感じで参加します</label>
+            <label for="member-status"><span class="field-en">HOW TO CONNECT</span><span class="field-ja">こんな感じで参加します</span></label>
             <select id="member-status" name="member-status">
               <option value="雑談歓迎">雑談歓迎</option>
               <option value="ゲーム誘って">ゲーム誘って</option>
@@ -96,21 +74,10 @@
             </select>
           </div>
 
-          <fieldset class="field theme-field">
-            <legend>7つのスタイル</legend>
-            <div class="theme-grid">
-              <label class="theme-choice"><input type="radio" name="theme" value="y3k" checked><span class="theme-swatch swatch-y3k" aria-hidden="true"></span><span><strong>Y3K</strong><small>エステティック</small></span><svg class="theme-check" aria-hidden="true" viewBox="0 0 16 16"><path d="m3 8 3 3 7-7"/></svg></label>
-              <label class="theme-choice"><input type="radio" name="theme" value="kawaii"><span class="theme-swatch swatch-kawaii" aria-hidden="true"></span><span><strong>NEO KAWAII</strong><small>ガラス × かわいい</small></span><svg class="theme-check" aria-hidden="true" viewBox="0 0 16 16"><path d="m3 8 3 3 7-7"/></svg></label>
-              <label class="theme-choice"><input type="radio" name="theme" value="chrome"><span class="theme-swatch swatch-chrome" aria-hidden="true"></span><span><strong>CHROME</strong><small>サイバー・メタル</small></span><svg class="theme-check" aria-hidden="true" viewBox="0 0 16 16"><path d="m3 8 3 3 7-7"/></svg></label>
-              <label class="theme-choice"><input type="radio" name="theme" value="aurora"><span class="theme-swatch swatch-aurora" aria-hidden="true"></span><span><strong>AURORA</strong><small>ドリーム・光</small></span><svg class="theme-check" aria-hidden="true" viewBox="0 0 16 16"><path d="m3 8 3 3 7-7"/></svg></label>
-              <label class="theme-choice"><input type="radio" name="theme" value="pixel"><span class="theme-swatch swatch-pixel" aria-hidden="true"></span><span><strong>PIXEL</strong><small>レトロネット</small></span><svg class="theme-check" aria-hidden="true" viewBox="0 0 16 16"><path d="m3 8 3 3 7-7"/></svg></label>
-              <label class="theme-choice"><input type="radio" name="theme" value="pop"><span class="theme-swatch swatch-pop" aria-hidden="true"></span><span><strong>SOFT POP</strong><small>やわらかポップ</small></span><svg class="theme-check" aria-hidden="true" viewBox="0 0 16 16"><path d="m3 8 3 3 7-7"/></svg></label>
-              <label class="theme-choice"><input type="radio" name="theme" value="holo"><span class="theme-swatch swatch-holo" aria-hidden="true"></span><span><strong>HOLOGRAM</strong><small>モノクロ・虹色</small></span><svg class="theme-check" aria-hidden="true" viewBox="0 0 16 16"><path d="m3 8 3 3 7-7"/></svg></label>
-            </div>
-          </fieldset>
+          
 
           <fieldset class="field avatar-field">
-            <legend>アイコン画像</legend>
+            <legend><span class="field-en">YOUR PORTRAIT</span><span class="field-ja">アイコン画像</span></legend>
             <p id="avatar-help" class="field-help avatar-help">PNG・JPEG・WebP / 12MBまで。画像は外部へ送信しません。</p>
             <label class="upload-button" for="avatar-file"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="9" cy="9" r="2"/><path d="m3 17 5-5 5 5 4-4 4 4"/></svg><span id="upload-label">端末から画像を選ぶ</span><span class="upload-plus" aria-hidden="true">＋</span></label>
             <input class="file-input" id="avatar-file" type="file" accept="image/png,image/jpeg,image/webp" aria-describedby="avatar-help avatar-error">
@@ -123,21 +90,14 @@
             </div>
           </fieldset>
         </form>
-      </section>
+        </section>
+      </div>
     </div>
-
-    <section class="how-to" aria-labelledby="howto-heading">
-      <h2 id="howto-heading">できた会員証は、こんなふうに。</h2>
-      <ol><li><span>1</span><div><strong>あなたらしくつくる</strong><p>名前・すきなもの・スタイルを選ぶ。</p></div></li><li><span>2</span><div><strong>画像を保存する</strong><p>うまく保存できないときは「画像を表示」から。</p></div></li><li><span>3</span><div><strong>Discordで自己紹介</strong><p>保存した画像を、自己紹介と一緒に投稿。</p></div></li></ol>
-    </section>
+    <section class="how-to" aria-labelledby="howto-heading"><h2 id="howto-heading"><span class="field-en">PRINT. SAVE. SAY HELLO.</span><span>できた1枚で、はじめまして。</span></h2><ol><li><span>01</span><div><strong>あなたらしく刷る</strong><p>名前とすきなこと、好みのスタイルで。</p></div></li><li><span>02</span><div><strong>画像を保存する</strong><p>保存できないときは「画像を表示」から長押し。</p></div></li><li><span>03</span><div><strong>Discordで自己紹介</strong><p>できた会員証を、あいさつと一緒に。</p></div></li></ol></section>
   </main>
-  <footer class="site-footer shell"><span data-community-name>インターネットVちゅー会</span><p>入力・画像処理はこの端末内で完結します。<br class="mobile-break">完成した画像は保存してお使いください。</p><span class="footer-flower" aria-hidden="true">✳</span></footer>
-
-  <dialog id="image-dialog" aria-labelledby="image-dialog-title">
-    <div class="dialog-heading"><h2 id="image-dialog-title">できあがった会員証</h2><button type="button" id="close-dialog" class="button button-secondary">閉じる</button></div>
-    <p>スマホでは画像を長押しして保存できます。<br>表示されるメニューは、お使いの端末によって異なります。</p>
-    <img id="finished-image" alt="作成した会員証。長押しで画像を保存できます。" width="1600" height="1000">
-  </dialog>
+  <footer class="site-footer shell"><span data-community-name>インターネットVちゅー会</span><p>入力・画像処理はこの端末内で完結します。</p><span class="footer-type" aria-hidden="true">V-CHU!</span></footer>
+  <div class="save-actions"><div class="save-buttons"><button id="download-button" class="button button-primary" type="button" disabled aria-describedby="save-hint"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v4h16v-4"/></svg><span>PNGを保存する</span></button><button id="show-button" class="button button-secondary" type="button" disabled>画像を表示</button></div><p id="save-hint">お名前を入れると保存できます。</p></div>
+  <dialog id="image-dialog" aria-labelledby="image-dialog-title"><div class="dialog-heading"><h2 id="image-dialog-title">刷り上がった会員証</h2><button type="button" id="close-dialog" class="button button-secondary">閉じる</button></div><p>スマホでは画像を長押しして保存できます。表示されるメニューは、お使いの端末によって異なります。</p><img id="finished-image" alt="作成した会員証。長押しで画像を保存できます。" width="1600" height="1000"></dialog>
   <noscript><p class="noscript">会員証をつくるには、ブラウザのJavaScriptを有効にしてください。</p></noscript>
 </body>
 </html>
