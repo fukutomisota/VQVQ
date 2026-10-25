@@ -44,6 +44,7 @@
   set('flip-duration', `${tokens.motion.flip}ms`);
   set('press-duration', `${tokens.motion.press}ms`);
   set('tilt', `${tokens.texture.tilt}deg`);
+  set('page-width', `${100-2*tokens.layout.mobileGutter}vw`);
   const media = matchMedia('(prefers-color-scheme: dark)');
   function applyScheme() {
     root.dataset.colorScheme = media.matches ? 'dark' : 'light';

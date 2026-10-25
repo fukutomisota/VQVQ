@@ -13,7 +13,7 @@ button,select,input[type="radio"],input[type="range"] { cursor: pointer; }
 button { color: inherit; }
 a { color: inherit; }
 svg { width: var(--space-xl); height: var(--space-xl); fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: square; stroke-linejoin: miter; flex-shrink: 0; }
-.shell { width: min(var(--layout-maxWidth),90%); margin-inline: auto; }
+.shell { width: min(var(--layout-maxWidth),var(--page-width)); margin-inline: auto; }
 .site-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); min-height: calc(var(--space-section) * 2); border-bottom: var(--layout-border) solid var(--text); }
 .brand { display: inline-flex; align-items: center; gap: var(--space-sm); min-width: 0; text-decoration: none; font-size: var(--type-small); font-weight: 800; line-height: 1.35; }
 .brand > span:last-child { overflow-wrap: anywhere; }
