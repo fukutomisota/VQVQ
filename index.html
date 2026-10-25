@@ -3,16 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f4efe6">
-  <meta name="description" content="PUBLICK WORLD。名前と好きなものを入れるだけ。7つのスタイルから選べる会員証。ログイン不要。">
+  <meta name="theme-color" content="#0a0a0c">
+  <meta name="description" content="PUBLICK WORLD。名前と好きなものを入れるだけ。6つのスタイルから選べる会員証。ログイン不要。">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <title>会員証をつくる | PUBLICK WORLD</title>
-  <script src="./tokens.js?v=publick-1"></script>
-  <link rel="icon" href="./favicon.svg?v=publick-1" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=publick-1">
-  <script src="./config.js?v=publick-1" defer></script>
-  <script src="./card-renderer.js?v=publick-2" defer></script>
-  <script src="./app.js?v=publick-1" defer></script>
+  <script src="./tokens.js?v=quiet-1"></script>
+  <link rel="icon" href="./favicon.svg?v=quiet-1" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css?v=quiet-1">
+  <script src="./config.js?v=quiet-1" defer></script>
+  <script src="./card-renderer.js?v=quiet-1" defer></script>
+  <script src="./app.js?v=quiet-1" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#editor">入力欄へ移動</a>
@@ -24,19 +24,20 @@
     <section class="intro" aria-labelledby="page-title">
       <p class="eyebrow">PUBLICK WORLD / MEMBER CARD</p>
       <h1 id="page-title"><span class="headline-one">会員証。</span><span class="headline-two">あなたの、1枚。</span></h1>
-      <div class="intro-bottom"><p>名前と好きなものを入れるだけ。<br>7つのスタイルから、あなたらしさを選べます。<br>ログインは不要です。</p></div>
+      <div class="intro-bottom"><p>名前と好きなものを入れるだけ。<br>6つのスタイルから、あなたらしさを選べます。<br>ログインは不要です。</p></div>
     </section>
     <div class="workspace">
       <section class="preview-panel" aria-labelledby="preview-heading">
         <div class="panel-heading"><h2 id="preview-heading">01 あなたの会員証。</h2><span class="preview-label">LIVE PREVIEW</span></div>
-        <div class="preview-stage"><div class="card-holder" id="card-holder"><canvas id="card-canvas" width="1600" height="1000" role="img" aria-label="会員証のプレビュー" aria-describedby="card-summary">会員証のプレビューです。</canvas></div></div>
+        <div class="preview-stage"><div class="card-holder" id="card-holder"><canvas id="card-canvas" width="1600" height="1000" role="img" aria-label="会員証のプレビュー" aria-describedby="card-summary">会員証のプレビューです。</canvas><span class="card-shine" aria-hidden="true"></span></div></div>
         <div class="preview-meta"><span id="style-caption">Y3K LIQUID</span><span>1600 × 1000 / PNG</span></div>
         <p id="card-summary" class="sr-only"></p>
         <p id="save-status" class="status-message" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
       <div class="edit-stack">
-        <section class="style-panel" aria-labelledby="style-heading"><div class="section-heading"><h2 id="style-heading"><span class="field-en">STYLE</span><span>7つのスタイル。</span></h2><span class="yellow-sticker">7 STYLES</span></div><fieldset class="style-field"><legend class="sr-only">会員証のスタイル</legend><div class="style-rail" id="style-rail"></div></fieldset><p class="field-help">気分に合わせて、選ぶだけ。</p></section>
+        <section class="style-panel" aria-labelledby="style-heading"><div class="section-heading"><h2 id="style-heading"><span class="field-en">STYLE</span><span>6つのスタイル。</span></h2><span class="style-count">6 STYLES</span></div><fieldset class="style-field"><legend class="sr-only">会員証のスタイル</legend><div class="style-rail" id="style-rail"></div></fieldset><p class="field-help">気分に合わせて、選ぶだけ。</p></section>
         <section id="editor" class="editor-panel" aria-labelledby="editor-heading" tabindex="-1"><div class="section-heading"><h2 id="editor-heading"><span class="field-en">ABOUT YOU</span><span>02 あなたのこと、少しだけ。</span></h2></div><p class="form-intro">名前以外は、お好みで。</p>
+        <p id="return-message" class="return-message" role="status" hidden></p>
         <form id="card-form" novalidate>
           <div class="field">
             <label for="member-name"><span class="field-en">DISPLAY NAME</span><span class="field-ja">呼ばれたい名前 <span class="required-tag">必須</span></span></label>
@@ -89,11 +90,21 @@
               <div class="image-tools"><button class="text-button" type="button" id="center-avatar">位置を中央に戻す</button><button class="text-button" type="button" id="remove-avatar">画像を外す</button></div>
             </div>
           </fieldset>
+          <div class="remember-panel">
+            <label class="remember-label" for="remember-details"><input type="checkbox" id="remember-details" aria-describedby="remember-help"><span>この端末に覚える</span></label>
+            <p class="field-help" id="remember-help">名前や文章をこの端末に保存。アイコンは保存しません。</p>
+            <button class="text-button" id="forget-details" type="button" hidden>保存した内容を削除</button>
+          </div>
         </form>
+        <div class="intro-copy">
+          <button class="button button-secondary" id="copy-intro" type="button" disabled>自己紹介文をコピー</button>
+          <p id="copy-status" role="status" aria-live="polite"></p>
+          <textarea id="intro-copy-fallback" aria-label="自己紹介文。選択してコピーできます。" readonly hidden></textarea>
+        </div>
         </section>
       </div>
     </div>
-    <section class="how-to" aria-labelledby="howto-heading"><h2 id="howto-heading">入力する。保存する。<br>Discordで、はじめまして。</h2><div class="feature-grid"><div><h3>7つのスタイル。</h3><p>気分に合わせて、選ぶだけ。</p></div><div><h3>ログイン不要。</h3><p>思い立ったら、すぐつくれる。</p></div><div><h3>プライバシーは、端末の中に。</h3><p>入力も画像処理も、この端末の中で完結します。</p></div><div><h3>何度でも。</h3><p>気分が変わったら、つくり直せます。</p></div></div></section><section class="community-section" aria-labelledby="community-heading"><p class="eyebrow">PUBLICK WORLD</p><h2 id="community-heading">ここから、<br>はじまる。</h2><a class="button button-primary discord-link" data-discord-link hidden target="_blank" rel="noopener noreferrer" aria-label="Discordへ進む（新しいタブで開く）">Discordへ進む <span aria-hidden="true">↗</span></a></section>
+    <section class="how-to" aria-labelledby="howto-heading"><h2 id="howto-heading">入力する。保存する。<br>Discordで、はじめまして。</h2><div class="feature-grid"><div><h3>6つのスタイル。</h3><p>気分に合わせて、選ぶだけ。</p></div><div><h3>ログイン不要。</h3><p>思い立ったら、すぐつくれる。</p></div><div><h3>プライバシーは、端末の中に。</h3><p>入力も画像処理も、この端末の中で完結します。</p></div><div><h3>何度でも。</h3><p>気分が変わったら、つくり直せます。</p></div></div></section><section class="community-section" aria-labelledby="community-heading"><p class="eyebrow">PUBLICK WORLD</p><h2 id="community-heading">ここから、<br>はじまる。</h2><a class="button button-primary discord-link" data-discord-link hidden target="_blank" rel="noopener noreferrer" aria-label="Discordへ進む（新しいタブで開く）">Discordへ進む <span aria-hidden="true">↗</span></a></section>
   </main>
   <footer class="site-footer shell"><span data-community-name>PUBLICK WORLD</span><p>入力・画像処理はこの端末内で完結します。</p><span class="footer-type" aria-hidden="true">P*</span></footer>
   <div class="save-actions"><div class="save-buttons"><button id="download-button" class="button button-primary" type="button" disabled aria-describedby="save-hint"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v4h16v-4"/></svg><span>PNGを保存する</span></button><button id="show-button" class="button button-secondary" type="button" disabled>画像を表示</button></div><p id="save-hint">お名前を入れると保存できます。</p></div>

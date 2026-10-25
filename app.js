@@ -21,6 +21,7 @@
     { id: 'member-likes', error: 'likes-error', max: 48, label: 'すきなもの' },
     { id: 'member-message', error: 'message-error', max: 60, label: 'ひとこと' },
   ];
+  const STORAGE_KEY = 'publick-world.card.v1';
 
   document.querySelectorAll('[data-community-name]').forEach((element) => { element.textContent = config.communityName; });
   document.title = `会員証をつくる | ${config.communityName}`;
@@ -69,6 +70,7 @@
     }
     $('download-button').disabled = !valid || state.loading || state.saving;
     $('show-button').disabled = !valid || state.loading || state.saving;
+    $('copy-intro').disabled = !valid;
     $('save-hint').textContent = state.loading ? 'アイコンを読み込んでいます。'
       : state.saving ? '画像を準備しています。'
       : valid ? '保存できないときは「画像を表示」から長押しで保存。'
@@ -88,7 +90,67 @@
     const caption=document.createElement('span');caption.className='style-mini-caption';caption.textContent=theme.subtitle;
     label.append(input,mini,title,caption);rail.append(label);thumbnails.push({key,ctx:mini.getContext('2d')});
   });
-  let flipTimer=0;
+
+  function rememberMessage(message) {
+    $('return-message').textContent = message;
+    $('return-message').hidden = !message;
+  }
+  function persistDetails() {
+    if (!$('remember-details').checked) return;
+    const values=getValues();
+    const savedFields=Object.fromEntries(fields.map(field => [field.id,characters(clean($(field.id).value)).slice(0,field.max).join('')]));
+    try {
+      localStorage.setItem(STORAGE_KEY,JSON.stringify({version:1,fields:savedFields,status:values.status,theme:values.theme}));
+      $('forget-details').hidden=false;
+    } catch {
+      $('remember-details').checked=false;
+      rememberMessage('このブラウザでは入力を保存できません。そのまま会員証はつくれます。');
+    }
+  }
+  function restoreDetails() {
+    try {
+      const raw=localStorage.getItem(STORAGE_KEY);
+      if(!raw)return;
+      if(raw.length>4096)throw new Error('invalid saved details');
+      const saved=JSON.parse(raw);
+      if(saved.version!==1||!saved.fields||typeof saved.fields!=='object')throw new Error('invalid saved details');
+      const values=fields.map(field=>{
+        const value=saved.fields[field.id];
+        if(typeof value!=='string'||characters(value).length>field.max)throw new Error('invalid saved field');
+        return [field.id,clean(value)];
+      });
+      const status=[...$('member-status').options].find(option=>option.value===saved.status);
+      // Previous local drafts can keep their closest surviving style.
+      const aliases={y3k:'y3k-liquid',kawaii:'sticker-bomb',chrome:'type-poster',holo:'holo-idol',pixel:'setting-sheet'};
+      const theme=themes[saved.theme]?saved.theme:aliases[saved.theme];
+      values.forEach(([id,value])=>{$(id).value=value;});
+      if(status)$('member-status').value=status.value;
+      if(theme&&themes[theme])document.querySelector(`input[name="theme"][value="${theme}"]`).checked=true;
+      $('remember-details').checked=true;
+      $('forget-details').hidden=false;
+      rememberMessage(values[0][1]?`おかえり、${values[0][1]}さん。`:'前回の入力を読み込みました。');
+    } catch {
+      try { localStorage.removeItem(STORAGE_KEY); } catch { /* Storage can be unavailable. */ }
+    }
+  }
+  function forgetDetails() {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      $('remember-details').checked=false;
+      $('forget-details').hidden=true;
+      rememberMessage('保存した入力内容を削除しました。');
+    } catch {
+      $('remember-details').checked=true;
+      rememberMessage('保存した内容を削除できませんでした。ブラウザのサイトデータから削除できます。');
+    }
+  }
+  $('remember-details').addEventListener('change',()=>{
+    if($('remember-details').checked){persistDetails();if($('remember-details').checked)rememberMessage('この端末に入力内容を覚えました。');}
+    else forgetDetails();
+  });
+  $('forget-details').addEventListener('click',forgetDetails);
+  restoreDetails();
+
   function render() {
     state.frame=0;
     const values=getValues();const theme=themes[values.theme];
@@ -100,14 +162,42 @@
   }
   rail.addEventListener('change',event=>{
     const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const holder=$('card-holder');clearTimeout(flipTimer);holder.classList.remove('paper-flip');
-    if(reduced){render();}else{void holder.offsetWidth;holder.classList.add('paper-flip');flipTimer=setTimeout(render,tokens.motion.flip*.45);}
+    const holder=$('card-holder');holder.classList.remove('style-transition','issue-reveal');
+    render();persistDetails();resetCardMotion();
+    if(!reduced){void holder.offsetWidth;holder.classList.add('style-transition');}
     const choice=event.target.closest('.theme-choice');
     if(choice)rail.scrollTo({left:choice.offsetLeft-rail.offsetLeft-(rail.clientWidth-choice.offsetWidth)/2,behavior:reduced?'instant':'smooth'});
   });
-  $('card-holder').addEventListener('animationend',()=> $('card-holder').classList.remove('paper-flip'));
-  $('card-holder').addEventListener('pointerdown',()=>{$('card-holder').dataset.pressed='true';});
-  ['pointerup','pointercancel','pointerleave'].forEach(type=>$('card-holder').addEventListener(type,()=>{delete $('card-holder').dataset.pressed;}));
+  const holder=$('card-holder');
+  holder.addEventListener('animationend',event=>{if(event.target===holder)holder.classList.remove('style-transition','issue-reveal');});
+  function resetCardMotion(){
+    delete holder.dataset.interactive;delete holder.dataset.pressed;
+    ['--shine-x','--shine-y','--rotate-x','--rotate-y'].forEach(key=>holder.style.removeProperty(key));
+  }
+  function moveCard(event){
+    if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+    const theme=getValues().theme;
+    if(!['y3k-liquid','holo-idol','glass'].includes(theme))return;
+    const rect=holder.getBoundingClientRect();
+    const x=Math.max(0,Math.min(1,(event.clientX-rect.left)/rect.width));
+    const y=Math.max(0,Math.min(1,(event.clientY-rect.top)/rect.height));
+    holder.style.setProperty('--shine-x',`${x*100}%`);holder.style.setProperty('--shine-y',`${y*100}%`);
+    holder.style.setProperty('--rotate-x',`${(0.5-y)*4}deg`);holder.style.setProperty('--rotate-y',`${(x-0.5)*4}deg`);
+    holder.dataset.interactive='true';
+  }
+  holder.addEventListener('pointermove',moveCard);
+  holder.addEventListener('pointerdown',event=>{holder.dataset.pressed='true';moveCard(event);});
+  ['pointerup','pointercancel','pointerleave'].forEach(type=>holder.addEventListener(type,resetCardMotion));
+  matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change',event=>{
+    if(event.matches){resetCardMotion();holder.classList.remove('issue-reveal','style-transition');}
+  });
+  let issueTimer=0;
+  function revealCard(){
+    if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+    clearTimeout(issueTimer);holder.classList.remove('issue-reveal','style-transition');
+    void holder.offsetWidth;holder.classList.add('issue-reveal');
+    issueTimer=setTimeout(()=>holder.classList.remove('issue-reveal'),tokens.motion.issue||650);
+  }
   function updateSticky() {
     const focused=document.activeElement;const mobile=innerWidth<=760;
     const viewportHeight=window.visualViewport?.height||innerHeight;
@@ -131,9 +221,29 @@
   addEventListener('resize',updateSticky);
   function scheduleRender() { if (!state.frame) state.frame = requestAnimationFrame(render); }
   $('card-form').addEventListener('submit', (event) => { event.preventDefault(); validate(true); });
-  $('card-form').addEventListener('input', scheduleRender);
+  $('card-form').addEventListener('input', ()=>{scheduleRender();persistDetails();});
   $('card-form').addEventListener('change', event => { if(event.target.name !== 'theme') scheduleRender(); });
   $('member-name').addEventListener('blur', () => validate(true));
+
+  function introduction(){
+    const values=getValues();
+    return [['名前',values.name],['肩書き',values.title],['すきなもの',values.likes],['ひとこと',values.message]]
+      .filter(([,value])=>value).map(([label,value])=>`${label}：${value}`).join('\n');
+  }
+  $('copy-intro').addEventListener('click',async()=>{
+    if(!validate(true))return;
+    const text=introduction();$('copy-status').textContent='';
+    try {
+      if(!navigator.clipboard?.writeText)throw new Error('clipboard unavailable');
+      await navigator.clipboard.writeText(text);
+      $('intro-copy-fallback').hidden=true;
+      $('copy-status').textContent='コピーしました。Discordの自己紹介に貼り付けられます。';
+    } catch {
+      const fallback=$('intro-copy-fallback');fallback.value=text;fallback.hidden=false;
+      fallback.focus();fallback.select();
+      $('copy-status').textContent='下の文章を選んでコピーしてください。';
+    }
+  });
 
   function resetCrop() {
     state.zoom = 1; state.x = 0; state.y = 0;
@@ -215,6 +325,7 @@
     try {
       const blob = await makeBlob();
       if (mode === 'download') {
+        revealCard();
         const url = URL.createObjectURL(blob); const link = document.createElement('a');
         link.href = url; link.download = filename(); document.body.append(link); link.click(); link.remove();
         // Keep the URL alive for mobile browsers that start the download later.
