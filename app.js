@@ -14,7 +14,8 @@
   const clean = (text) => text.normalize('NFC').replace(/[\u0000-\u001f\u007f]/gu, ' ').replace(/\s+/gu, ' ').trim();
   const themes = window.TACTILE_TOKENS.styles;
   const tokens = window.TACTILE_TOKENS;
-  const state = { avatar: null, zoom: 1, x: 0, y: 0, frame: 0, imageRequest: 0, loading: false, saving: false, finishedUrl: null };
+  const DEFAULT_LIGHT = Object.freeze({x:.3,y:.2});
+  const state = { avatar: null, zoom: 1, x: 0, y: 0, frame: 0, lightFrame: 0, light: {...DEFAULT_LIGHT}, imageRequest: 0, loading: false, saving: false, finishedUrl: null };
   const fields = [
     { id: 'member-name', error: 'name-error', max: 32, label: 'お名前', required: true },
     { id: 'member-title', error: 'title-error', max: 18, label: '肩書き' },
@@ -42,7 +43,7 @@
     return {
       name: clean($('member-name').value), title: clean($('member-title').value),
       likes: clean($('member-likes').value), message: clean($('member-message').value),
-      avatar: state.avatar, zoom: state.zoom, x: state.x, y: state.y, issuedDate,
+      avatar: state.avatar, zoom: state.zoom, x: state.x, y: state.y, issuedDate, light: {...state.light},
       status: $('member-status').value,
       theme: document.querySelector('input[name="theme"]:checked').value,
     };
@@ -121,7 +122,7 @@
       });
       const status=[...$('member-status').options].find(option=>option.value===saved.status);
       // Previous local drafts can keep their closest surviving style.
-      const aliases={y3k:'y3k-liquid',kawaii:'sticker-bomb',chrome:'type-poster',holo:'holo-idol',pixel:'setting-sheet'};
+      const aliases={y3k:'y3k-liquid',kawaii:'holo-idol',chrome:'holo-idol',holo:'holo-idol',pixel:'setting-sheet','sticker-bomb':'holo-idol','type-poster':'holo-idol',glass:'y3k-liquid'};
       const theme=themes[saved.theme]?saved.theme:aliases[saved.theme];
       values.forEach(([id,value])=>{$(id).value=value;});
       if(status)$('member-status').value=status.value;
@@ -153,50 +154,74 @@
 
   function render() {
     state.frame=0;
+    if(state.lightFrame){cancelAnimationFrame(state.lightFrame);state.lightFrame=0;}
     const values=getValues();const theme=themes[values.theme];
     window.TACTILE_RENDERER.draw(ctx,values.theme,values);
-    for(const mini of thumbnails)window.TACTILE_RENDERER.draw(mini.ctx,mini.key,values);
+    // Thumbnails keep a neutral light; pointer motion redraws only the large card.
+    for(const mini of thumbnails)window.TACTILE_RENDERER.draw(mini.ctx,mini.key,{...values,light:DEFAULT_LIGHT});
     $('style-caption').textContent=theme.label;
-    $('card-summary').textContent=`${config.communityName}の会員証。名前：${values.name||'未入力'}。肩書き：${values.title||'なし'}。すきなもの：${values.likes||'未入力'}。ひとこと：${values.message||'未入力'}。参加スタイル：${values.status||'表示なし'}。スタイル：${theme.label}。`;
+    const detail=values.theme==='setting-sheet'?`肩書き：${values.title||'なし'}。すきなもの：${values.likes||'未入力'}。参加スタイル：${values.status||'表示なし'}。`:'';
+    $('card-summary').textContent=`${config.communityName}の会員証。名前：${values.name||'未入力'}。${detail}ひとこと：${values.message||'未入力'}。スタイル：${theme.label}。`;
+    $('form-intro').textContent=values.theme==='setting-sheet'?'名前以外は、お好みで。入力した内容を資料にまとめます。':'カードに載せるのは名前とひとこと。肩書きやすきなものは、自己紹介文に使えます。';
     validate();
   }
   rail.addEventListener('change',event=>{
     const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const holder=$('card-holder');holder.classList.remove('style-transition','issue-reveal');
-    render();persistDetails();resetCardMotion();
+    const holder=$('card-holder');stopIssue();holder.classList.remove('style-transition');
+    resetCardMotion();render();persistDetails();
     if(!reduced){void holder.offsetWidth;holder.classList.add('style-transition');}
     const choice=event.target.closest('.theme-choice');
     if(choice)rail.scrollTo({left:choice.offsetLeft-rail.offsetLeft-(rail.clientWidth-choice.offsetWidth)/2,behavior:reduced?'instant':'smooth'});
   });
   const holder=$('card-holder');
   holder.addEventListener('animationend',event=>{if(event.target===holder)holder.classList.remove('style-transition','issue-reveal');});
+  let lastLightPaint=0;
+  function paintLight(time){
+    state.lightFrame=0;
+    if(time-lastLightPaint<1000/30){state.lightFrame=requestAnimationFrame(paintLight);return;}
+    lastLightPaint=time;
+    const values=getValues();window.TACTILE_RENDERER.draw(ctx,values.theme,values);
+  }
+  function scheduleLight(){if(!state.lightFrame&&!state.frame)state.lightFrame=requestAnimationFrame(paintLight);}
   function resetCardMotion(){
     delete holder.dataset.interactive;delete holder.dataset.pressed;
-    ['--shine-x','--shine-y','--rotate-x','--rotate-y'].forEach(key=>holder.style.removeProperty(key));
+    ['--rotate-x','--rotate-y'].forEach(key=>holder.style.removeProperty(key));
+    if(state.light.x!==DEFAULT_LIGHT.x||state.light.y!==DEFAULT_LIGHT.y){state.light={...DEFAULT_LIGHT};scheduleLight();}
   }
   function moveCard(event){
     if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
     const theme=getValues().theme;
-    if(!['y3k-liquid','holo-idol','glass'].includes(theme))return;
+    if(!['y3k-liquid','holo-idol'].includes(theme))return;
+    stopIssue();
     const rect=holder.getBoundingClientRect();
     const x=Math.max(0,Math.min(1,(event.clientX-rect.left)/rect.width));
     const y=Math.max(0,Math.min(1,(event.clientY-rect.top)/rect.height));
-    holder.style.setProperty('--shine-x',`${x*100}%`);holder.style.setProperty('--shine-y',`${y*100}%`);
     holder.style.setProperty('--rotate-x',`${(0.5-y)*4}deg`);holder.style.setProperty('--rotate-y',`${(x-0.5)*4}deg`);
+    state.light={x:DEFAULT_LIGHT.x+(x-.5)*.58,y:DEFAULT_LIGHT.y+(y-.5)*.38};
+    scheduleLight();
     holder.dataset.interactive='true';
   }
   holder.addEventListener('pointermove',moveCard);
   holder.addEventListener('pointerdown',event=>{holder.dataset.pressed='true';moveCard(event);});
   ['pointerup','pointercancel','pointerleave'].forEach(type=>holder.addEventListener(type,resetCardMotion));
   matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change',event=>{
-    if(event.matches){resetCardMotion();holder.classList.remove('issue-reveal','style-transition');}
+    if(event.matches){stopIssue();resetCardMotion();holder.classList.remove('style-transition');render();}
   });
-  let issueTimer=0;
+  let issueTimer=0,issueFrame=0;
+  function stopIssue(){clearTimeout(issueTimer);cancelAnimationFrame(issueFrame);issueFrame=0;holder.classList.remove('issue-reveal');}
   function revealCard(){
     if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
-    clearTimeout(issueTimer);holder.classList.remove('issue-reveal','style-transition');
+    stopIssue();holder.classList.remove('style-transition');
     void holder.offsetWidth;holder.classList.add('issue-reveal');
-    issueTimer=setTimeout(()=>holder.classList.remove('issue-reveal'),tokens.motion.issue||650);
+    const duration=tokens.motion.issue||650,start=performance.now();
+    const tick=time=>{
+      const progress=Math.min(1,(time-start)/duration),pulse=Math.sin(progress*Math.PI);
+      state.light={x:DEFAULT_LIGHT.x+.32*pulse,y:DEFAULT_LIGHT.y+.12*pulse};scheduleLight();
+      if(progress<1)issueFrame=requestAnimationFrame(tick);
+      else{issueFrame=0;state.light={...DEFAULT_LIGHT};scheduleLight();holder.classList.remove('issue-reveal');}
+    };
+    issueFrame=requestAnimationFrame(tick);
+    issueTimer=setTimeout(()=>{stopIssue();resetCardMotion();},duration+100);
   }
   function updateSticky() {
     const focused=document.activeElement;const mobile=innerWidth<=760;
@@ -208,7 +233,7 @@
   }
   function keepFocusVisible(){
     updateSticky();const focused=document.activeElement;
-    if(!focused||!$('editor').contains(focused))return;
+    if(!focused||focused===$('editor')||!$('editor').contains(focused))return;
     const rect=focused.getBoundingClientRect();const top=innerWidth<=760?document.querySelector('.preview-panel').getBoundingClientRect().bottom+tokens.space.md:tokens.space.xl;
     const bottom=Math.min(innerHeight,window.visualViewport?.height||innerHeight)-document.querySelector('.save-actions').getBoundingClientRect().height-tokens.space.md;
     if(rect.top<top)scrollBy(0,rect.top-top);else if(rect.bottom>bottom)scrollBy(0,rect.bottom-bottom);
@@ -311,6 +336,7 @@
 
   function makeBlob() {
     // Flush any pending preview so an immediate Save includes the last edit.
+    stopIssue();resetCardMotion();
     if (state.frame) cancelAnimationFrame(state.frame);
     render();
     return new Promise((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('画像を作成できませんでした。')), 'image/png'));
@@ -322,12 +348,13 @@
   async function exportImage(mode) {
     if (!validate(true) || state.loading || state.saving) return;
     state.saving = true; validate(); $('save-status').textContent = '';
+    const exportFilename=filename();
     try {
       const blob = await makeBlob();
       if (mode === 'download') {
         revealCard();
         const url = URL.createObjectURL(blob); const link = document.createElement('a');
-        link.href = url; link.download = filename(); document.body.append(link); link.click(); link.remove();
+        link.href = url; link.download = exportFilename; document.body.append(link); link.click(); link.remove();
         // Keep the URL alive for mobile browsers that start the download later.
         setTimeout(() => URL.revokeObjectURL(url), 60_000);
         $('save-status').textContent = '完成しました。あなたの会員証です。';

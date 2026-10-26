@@ -8,23 +8,22 @@
       dark: { surface: '#0a0a0c', raised: '#16161a', text: '#f5f5f7', secondary: '#a2a2ad', border: '#646470', hair: '#ffffff14', accent: '#c9b8ff', accentHover: '#dbceff', onAccent: '#191321', blueText: '#c9b8ff', pinkText: '#f5a0b8', dock: '#0a0a0ced', shine: '#f2e7ff80', cardShadow: '0 20px 60px #00000055' },
     },
     fonts: {
+      brand: 'Arial, Helvetica, sans-serif',
       sans: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", system-ui, sans-serif',
       mono: 'ui-monospace, "SFMono-Regular", "Cascadia Code", "BIZ UDGothic", "Meiryo", monospace',
       hand: '"Segoe Print", "Comic Sans MS", "Yu Gothic", cursive',
     },
     type: { body: 16, small: 16, label: 16, micro: 12, headingSmall: 52, headingLarge: 38, desktopSmall: 76, desktopLarge: 104, cardName: 200, cardNameMin: 48, cardBody: 30, cardLabel: 24, cardMeta: 23, cardCommunity: 44, cardSerial: 32, cardScript: 28, cardTitle: 34, cardTitleLarge: 36, cardDense: 31, cardMessage: 32, cardStatus: 28, cardMarker: 26, cardStrip: 40, cardMin: 20, cardMinSmall: 22, cardMinLabel: 24, cardMinDense: 25, cardMinTitle: 26, cardMinLarge: 28 },
     space: { xxs: 4, xs: 8, sm: 12, md: 16, lg: 20, xl: 24, xxl: 32, section: 40, wide: 48, giant: 64 },
-    layout: { maxWidth: 1200, mobileGutter: 5, border: 1, strongBorder: 2, radius: 20, inputRadius: 14, miniRadius: 12, cardRadius: 16, inputHeight: 56, touch: 44, thumbWidth: 180, dockHeight: 136, stickyOffset: 8, compactWidth: 220, saveMaxWidth: 680, dialogMaxWidth: 1040, rangeLabel: 104, rangeValue: 58, perspective: 1000 },
-    texture: { tileSize: 256, pageOpacity: 0, cardOpacity: .085, grainFieldOpacity: .12, foilOpacity: .075, liquidOpacity: .025, holoOpacity: .025, glassOpacity: .015, sheetOpacity: .025, seed: 13671, offset: 2, tilt: 0, shadow: '#1816142e' },
+    layout: { maxWidth: 1200, mobileGutter: 5, border: 1, strongBorder: 2, radius: 20, inputRadius: 14, miniRadius: 12, cardRadius: 16, inputHeight: 56, touch: 44, thumbWidth: 220, dockHeight: 136, stickyOffset: 8, compactWidth: 220, saveMaxWidth: 680, dialogMaxWidth: 1040, rangeLabel: 104, rangeValue: 58, perspective: 1000 },
+    texture: { tileSize: 256, pageOpacity: 0, sheetOpacity: .025, seed: 13671, offset: 2, tilt: 0, shadow: '#1816142e' },
+    material: { markSize: 384, foilWidth: 448, foilHeight: 280, lightZ: 1.25, specularPower: 80, cacheEntries: 8 },
     motion: { flip: 260, press: 180, issue: 650 },
     card: { width: 1600, height: 1000, margin: 64, gap: 32, nameLeading: 1.04, bodyLeading: 1.4, tilt: .65 },
     styles: {
       'y3k-liquid': { label: 'Y3K LIQUID', subtitle: '流れるクローム・未来感', paper: '#101526', ink: '#f2f6ff', muted: '#cad4ef', primary: '#a6baff', secondary: '#d8f3fa', plate: '#19213a', stroke: '#98adcf', onPrimary: '#11182b', metal: ['#202c48', '#e6f4ff', '#7185a7', '#ffffff', '#354260', '#aebfe3', '#18213b'] },
       'holo-idol': { label: 'HOLO IDOL', subtitle: 'ホロ箔・推しの1枚', paper: '#e7e4f6', ink: '#292342', muted: '#51475f', primary: '#8678bb', secondary: '#b3dbdf', plate: '#f8f6ff', stroke: '#80719d', onPrimary: '#1c1730', foil: ['#eef2ff', '#b2d5f3', '#ebc5f4', '#c4e8e0', '#d7c5fa'] },
       'setting-sheet': { label: '設定資料', subtitle: '設定画・色指定チップ', paper: '#f3f2ed', ink: '#252b36', muted: '#58616e', primary: '#d8e2ea', secondary: '#5c7590', plate: '#fffefa', stroke: '#788593', onPrimary: '#252b36' },
-      'sticker-bomb': { label: 'STICKER BOMB', subtitle: '切り抜き・落書き', paper: '#e7dfe9', ink: '#22182a', muted: '#53445a', primary: '#ff3d81', secondary: '#2f4bff', plate: '#fffdf8', stroke: '#22182a', onPrimary: '#22182a' },
-      glass: { label: 'GLASS', subtitle: '透ける光・やわらかな奥行き', paper: '#111c2e', ink: '#f5f7ff', muted: '#c5cede', primary: '#a9bdec', secondary: '#9ad5db', plate: '#263b55', stroke: '#9fb7d2', onPrimary: '#111c2e' },
-      'type-poster': { label: 'TYPE POSTER', subtitle: '巨大文字・蛍光インク', paper: '#e9ece3', ink: '#161713', muted: '#4c5046', primary: '#c5ff31', secondary: '#161713', plate: '#f8faf3', stroke: '#161713', onPrimary: '#161713' },
     },
   };
   const freeze = (object) => { Object.values(object).forEach(value => { if (value && typeof value === 'object') freeze(value); }); return Object.freeze(object); };

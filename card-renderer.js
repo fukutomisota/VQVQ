@@ -1,212 +1,204 @@
-/* Six card materials share typography, crop controls and locally rendered textures. */
+/* Three compositions. Chrome and foil use a light-positioned material approximation. */
 (() => {
   'use strict';
-  const T = window.TACTILE_TOKENS;
-  const C = window.CARD_CONFIG;
-  const segmenter = typeof Intl.Segmenter === 'function' ? new Intl.Segmenter('ja', { granularity: 'grapheme' }) : null;
-  const chars = text => segmenter ? Array.from(segmenter.segment(text), item => item.segment) : Array.from(text);
-  const noise = document.createElement('canvas');
-  noise.width = noise.height = T.texture.tileSize;
-  const nc = noise.getContext('2d'); const pixels = nc.createImageData(noise.width, noise.height);
-  let seed = T.texture.seed;
-  for (let i = 0; i < pixels.data.length; i += 4) {
-    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
-    const value = (seed >>> 24);
-    pixels.data[i] = pixels.data[i + 1] = pixels.data[i + 2] = value; pixels.data[i + 3] = 255;
-  }
-  nc.putImageData(pixels, 0, 0);
+  const T=window.TACTILE_TOKENS,C=window.CARD_CONFIG;
+  const segmenter=typeof Intl.Segmenter==='function'?new Intl.Segmenter('ja',{granularity:'grapheme'}):null;
+  const chars=value=>segmenter?Array.from(segmenter.segment(value),item=>item.segment):Array.from(value);
+  const clamp=(value,min=0,max=1)=>Math.max(min,Math.min(max,value));
+  const size=T.material?.markSize||384;
+  const brandFont=T.fonts.brand||'Arial, Helvetica, sans-serif';
+  const materialCache=new Map();
 
-  function helpers(ctx, p) {
-    function rect(x,y,w,h,color) { ctx.fillStyle=color; ctx.fillRect(x,y,w,h); }
-    function line(x,y,x2,y2,color=p.ink,width=T.layout.border) { ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x2,y2);ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke(); }
-    function box(x,y,w,h,color=p.plate,border=p.stroke,width=T.layout.border) {rect(x,y,w,h,color);ctx.strokeStyle=border;ctx.lineWidth=width;ctx.strokeRect(x,y,w,h);}
-    function text(text,x,y,size=T.type.cardBody,color=p.ink,weight=500,font=T.fonts.sans) {ctx.font=`${weight} ${size}px ${font}`;ctx.textBaseline='top';ctx.textAlign='left';ctx.fillStyle=color;ctx.fillText(text,x,y);}
-    function wrap(text,width) {const lines=[];let current='';for(const ch of chars(text)){if(current&&ctx.measureText(current+ch).width>width&&!/^[、。，．！？）］｝〉》」』】〕]/u.test(ch)){lines.push(current);current=ch;}else current+=ch;}if(current)lines.push(current);return lines.length?lines:[''];}
-    function fit(text,area,{size=T.type.cardBody,min=T.type.cardMin,maxLines=2,color=p.ink,weight=600,font=T.fonts.sans,leading=T.card.bodyLeading,offsetX=0,offsetY=0}={}) {
+  function brandGlyph(ctx,text,x,y,fontSize,color,{align='left'}={}) {
+    ctx.save();ctx.font=`700 ${fontSize}px ${brandFont}`;ctx.textBaseline='alphabetic';ctx.fillStyle=color;
+    const gap=-fontSize*.08;
+    const first=ctx.measureText('P').width,second=ctx.measureText('*').width,total=first+second+gap;
+    const start=align==='center'?x-total/2:x;
+    ctx.fillText('P',start,y);ctx.fillText('*',start+first+gap,y);ctx.restore();
+  }
+
+  // A chamfer distance field gives the type its rounded metal relief and bevel normals.
+  function makeMarkGeometry() {
+    const mask=document.createElement('canvas');mask.width=mask.height=size;
+    const ctx=mask.getContext('2d');
+    brandGlyph(ctx,'P*',size/2,size*.81,size*.92,'#fff',{align:'center'});
+    const alpha=ctx.getImageData(0,0,size,size).data;
+    const distance=new Float32Array(size*size),height=new Float32Array(size*size);
+    for(let i=0;i<distance.length;i++)distance[i]=alpha[i*4+3]>100?size:0;
+    const diagonal=Math.SQRT2;
+    for(let y=1;y<size-1;y++)for(let x=1;x<size-1;x++) {
+      const i=y*size+x;if(!distance[i])continue;
+      distance[i]=Math.min(distance[i],distance[i-1]+1,distance[i-size]+1,distance[i-size-1]+diagonal,distance[i-size+1]+diagonal);
+    }
+    for(let y=size-2;y>0;y--)for(let x=size-2;x>0;x--) {
+      const i=y*size+x;if(!distance[i])continue;
+      distance[i]=Math.min(distance[i],distance[i+1]+1,distance[i+size]+1,distance[i+size+1]+diagonal,distance[i+size-1]+diagonal);
+    }
+    for(let y=0;y<size;y++)for(let x=0;x<size;x++) {
+      const i=y*size+x,d=distance[i];
+      height[i]=18*(1-Math.exp(-d/8))+clamp(d/10)*5*Math.sin(x*.033+y*.019)*Math.cos(y*.028-x*.011);
+    }
+    // Smooth the sampled relief before differentiating it: a stepped normal map
+    // would turn a polished surface into little faceted reflection stripes.
+    const smooth=new Float32Array(height.length);
+    for(let pass=0;pass<4;pass++) {
+      for(let y=2;y<size-2;y++)for(let x=2;x<size-2;x++) {
+        const i=y*size+x;smooth[i]=(height[i-2]+height[i-1]+height[i]+height[i+1]+height[i+2])/5;
+      }
+      for(let y=2;y<size-2;y++)for(let x=2;x<size-2;x++) {
+        const i=y*size+x;height[i]=(smooth[i-size*2]+smooth[i-size]+smooth[i]+smooth[i+size]+smooth[i+size*2])/5;
+      }
+    }
+    const normals=new Float32Array(size*size*3);
+    for(let y=1;y<size-1;y++)for(let x=1;x<size-1;x++) {
+      const i=y*size+x;
+      let nx=-(height[i+1]-height[i-1])*.8,ny=-(height[i+size]-height[i-size])*.8,nz=1;
+      const length=Math.hypot(nx,ny,nz);nx/=length;ny/=length;nz/=length;
+      normals[i*3]=nx;normals[i*3+1]=ny;normals[i*3+2]=nz;
+    }
+    return {alpha,distance,normals};
+  }
+  const markGeometry=makeMarkGeometry();
+  const foilWidth=Math.min(T.material?.foilWidth||320,320),foilHeight=Math.min(T.material?.foilHeight||200,200);
+  const foilNormals=new Float32Array(foilWidth*foilHeight*3);
+  for(let y=0;y<foilHeight;y++)for(let x=0;x<foilWidth;x++) {
+    const i=(y*foilWidth+x)*3,u=x/foilWidth,v=y/foilHeight;
+    const nx=.06*Math.sin(u*7+v*2),ny=.07*Math.cos(v*6-u*2),length=Math.sqrt(nx*nx+ny*ny+1);
+    foilNormals[i]=nx/length;foilNormals[i+1]=ny/length;foilNormals[i+2]=1/length;
+  }
+  function lightPosition(value) {return {x:clamp(Number.isFinite(value?.x)?value.x:.3),y:clamp(Number.isFinite(value?.y)?value.y:.2)};}
+  function material(kind,position) {
+    const light=lightPosition(position),qx=Math.round(light.x*40)/40,qy=Math.round(light.y*40)/40;
+    const key=`${kind}:${qx}:${qy}`;
+    if(materialCache.has(key)) {const cached=materialCache.get(key);materialCache.delete(key);materialCache.set(key,cached);return cached;}
+    const canvas=document.createElement('canvas');
+    const w=kind==='chrome'?size:foilWidth,h=kind==='chrome'?size:foilHeight;
+    canvas.width=w;canvas.height=h;
+    const ctx=canvas.getContext('2d'),image=ctx.createImageData(w,h),out=image.data;
+    const z=T.material?.lightZ||1.25,power=T.material?.specularPower||80;
+    // Project foil's light onto its actual plane, so the standard upper-left
+    // position places the gloss core inside the card instead of above its edge.
+    const lightX=(qx-.5)*(kind==='foil'?2:3),lightY=(qy-.5)*(kind==='foil'?1.4:2.25);
+    for(let y=0;y<h;y++)for(let x=0;x<w;x++) {
+      const i=y*w+x,j=i*4,u=x/w,v=y/h;
+      let nx,ny,nz;
+      if(kind==='chrome') {
+        if(!markGeometry.alpha[j+3])continue;
+        nx=markGeometry.normals[i*3];ny=markGeometry.normals[i*3+1];nz=markGeometry.normals[i*3+2];
+      } else {
+        nx=foilNormals[i*3];ny=foilNormals[i*3+1];nz=foilNormals[i*3+2];
+      }
+      let lx=lightX-(u-.5)*2,ly=lightY-(v-.5)*1.4,lz=z;
+      const distanceSquared=lx*lx+ly*ly+lz*lz,lightLength=Math.sqrt(distanceSquared);lx/=lightLength;ly/=lightLength;lz/=lightLength;
+      const diffuse=Math.max(0,nx*lx+ny*ly+nz*lz);
+      const halfDot=Math.max(0,(diffuse+nz)/Math.sqrt(2+2*lz));
+      const specular=Math.pow(halfDot,power)/(1+.18*distanceSquared);
+      if(kind==='chrome') {
+        // Reflected room softboxes, Fresnel edge response and a point-light specular lobe.
+        const rx=2*nz*nx,ry=2*nz*ny;
+        const softbox=Math.exp(-Math.pow(ry-.28,2)/.012)+.8*Math.exp(-Math.pow(ry+.48,2)/.018)+.6*Math.exp(-Math.pow(rx+.38,2)/.014);
+        const base=23+softbox*148+diffuse*27+specular*220+Math.pow(1-nz,3)*52;
+        const edge=markGeometry.distance[i]<1.3?45*diffuse:0;
+        out[j]=clamp(base+edge,0,255);out[j+1]=clamp(base*1.025+edge+6,0,255);out[j+2]=clamp(base*1.08+edge+15,0,255);out[j+3]=markGeometry.alpha[j+3];
+      } else {
+        // Thin-film-inspired phase responds to both incidence and viewing angle.
+        const phase=29*(1-diffuse)+13*(1-nz)+u*2.4+v*1.3;
+        const sheen=Math.pow(halfDot,14);
+        const base=198+diffuse*8;
+        // A white clear-coat core and a broad roll-off sit above the colored
+        // film response. Both follow the same surface normal and point light.
+        const coat=clamp(specular*1.75+sheen*.08);
+        const red=clamp(base+29*Math.cos(phase),176,255),green=clamp(base+28*Math.cos(phase+2.1),176,255),blue=clamp(base+30*Math.cos(phase+4.2)+5,176,255);
+        out[j]=red+(255-red)*coat;out[j+1]=green+(255-green)*coat;out[j+2]=blue+(255-blue)*coat;out[j+3]=255;
+      }
+    }
+    ctx.putImageData(image,0,0);materialCache.set(key,canvas);
+    while(materialCache.size>(T.material?.cacheEntries||8))materialCache.delete(materialCache.keys().next().value);
+    return canvas;
+  }
+
+  const noise=document.createElement('canvas');noise.width=noise.height=T.texture.tileSize;
+  const noiseContext=noise.getContext('2d'),pixels=noiseContext.createImageData(noise.width,noise.height);let seed=T.texture.seed;
+  for(let i=0;i<pixels.data.length;i+=4){seed=(Math.imul(seed,1664525)+1013904223)>>>0;const value=seed>>>24;pixels.data[i]=pixels.data[i+1]=pixels.data[i+2]=value;pixels.data[i+3]=255;}
+  noiseContext.putImageData(pixels,0,0);
+  const paperPatterns=new WeakMap();
+
+  function helpers(ctx,p,v) {
+    function rect(x,y,w,h,color){ctx.fillStyle=color;ctx.fillRect(x,y,w,h);}
+    function line(x,y,x2,y2,color=p.stroke,width=1){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x2,y2);ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke();}
+    function text(value,x,y,size=T.type.cardBody,color=p.ink,weight=500,font=T.fonts.sans,align='left') {ctx.font=`${weight} ${size}px ${font}`;ctx.textBaseline='top';ctx.textAlign=align;ctx.fillStyle=color;ctx.fillText(value,x,y);}
+    function wrap(value,width){const lines=[];let current='';for(const ch of chars(value)){if(current&&ctx.measureText(current+ch).width>width&&!/^[、。，．！？）］｝〉》」』】〕]/u.test(ch)){lines.push(current);current=ch;}else current+=ch;}if(current)lines.push(current);return lines.length?lines:[''];}
+    function fit(value,area,{size=T.type.cardBody,min=20,maxLines=3,color=p.ink,weight=500,font=T.fonts.sans,leading=1.35,align='left'}={}) {
       let lines=[];
-      for(;size>=min;size--){ctx.font=`${weight} ${size}px ${font}`;lines=wrap(text,area.w);if(lines.length<=maxLines&&lines.length*size*leading<=area.h&&lines.every(line=>ctx.measureText(line).width<=area.w))break;}
-      size=Math.max(size,min);ctx.font=`${weight} ${size}px ${font}`;ctx.fillStyle=color;ctx.textBaseline='top';
-      lines.forEach((line,index)=>ctx.fillText(line,area.x+offsetX,area.y+offsetY+index*size*leading));
-      return {size,lines:lines.length,height:lines.length*size*leading};
+      for(;size>=min;size--){ctx.font=`${weight} ${size}px ${font}`;lines=wrap(value,area.w);if(lines.length<=maxLines&&lines.length*size*leading<=area.h&&lines.every(item=>ctx.measureText(item).width<=area.w))break;}
+      size=Math.max(size,min);ctx.font=`${weight} ${size}px ${font}`;ctx.fillStyle=color;ctx.textBaseline='top';ctx.textAlign=align;
+      const x=align==='center'?area.x+area.w/2:area.x;
+      lines.forEach((item,index)=>ctx.fillText(item,x,area.y+index*size*leading));return {size,lines:lines.length};
     }
-    function name(text,area,options={}) {return fit(text||'あなた',area,{size:T.type.cardName,min:T.type.cardNameMin,leading:T.card.nameLeading,weight:900,...options});}
-    function cropMarks(color=p.stroke) {const m=24,s=32,o=T.texture.offset;[[m,m,1,1],[1600-m,m,-1,1],[m,1000-m,1,-1],[1600-m,1000-m,-1,-1]].forEach(([x,y,dx,dy],i)=>{line(x-10*dx,y+o*(i%2),x+s*dx,y+o*(i%2),color,2);line(x,y-10*dy,x,y+s*dy,color,2);});}
-    function barcode(x=1280,y=928,w=248,h=34,color=p.ink) {let n=71;for(let i=0;i<w;){n=(Math.imul(n,1103515245)+12345)>>>0;const bar=2+(n%4);rect(x+i,y,bar,h-(i%7===0?6:0),color);i+=bar+2+(n%3);}}
-    function header({rule=true,color=p.ink}={}) {text('MEMBER CARD',T.card.margin,47,T.type.cardMeta,color,700,T.fonts.mono);fit(C.communityName,{x:T.card.margin,y:94,w:1120,h:68},{size:T.type.cardCommunity,min:T.type.cardMinLabel,maxLines:1,color,weight:800});text('ISSUED',1280,49,T.type.cardMeta,color,700,T.fonts.mono);text(values.issuedDate,1280,106,T.type.cardMeta,color,500,T.fonts.mono);if(rule)line(T.card.margin,185,(T.card.width-T.card.margin),185,color);}
-    function footer(label=p.label) {text(label,T.card.margin,942,T.type.cardMeta,p.ink,700,T.fonts.mono);barcode();}
-    function status(label,x=1230,y=588,w=300) {if(!label)return;box(x,y,w,54,p.plate,p.stroke,2);fit(label,{x:x+16,y:y+12,w:w-32,h:36},{size:T.type.cardStatus,min:T.type.cardMinSmall,maxLines:1,weight:700});}
-    function fields({y=596,likesY=686,messageY=824,width=(T.card.width-2*T.card.margin),x=T.card.margin,showTitle=true}={}) {
-      if(values.title&&showTitle)fit(values.title,{x,y,w:1080,h:52},{size:T.type.cardTitle,min:T.type.cardMinTitle,maxLines:1,weight:700});
-      text('THINGS I LOVE / すきなもの',x,likesY-40,T.type.cardLabel,p.muted,600,T.fonts.mono);
-      fit(values.likes||'雑談 / ゲーム / すきなこと',{x,y:likesY,w:width,h:88},{size:T.type.cardTitle,min:T.type.cardMinLabel,weight:600});
-      line(x,messageY-16,x+width,messageY-16,p.stroke);
-      text('SAY HELLO',x,messageY+6,T.type.cardLabel,p.muted,700,T.fonts.mono);
-      fit(values.message||'はじめまして。よろしくね。',{x:x+250,y:messageY,w:width-250,h:86},{size:T.type.cardMessage,min:T.type.cardMinSmall,weight:500});
+    function name(area,options={}){return fit(v.name||'あなた',area,{size:T.type.cardName,min:T.type.cardNameMin,maxLines:2,weight:800,leading:1.06,...options});}
+    function avatar(x,y,w,h,{radius=0,border=p.stroke,initial=false}={}) {
+      ctx.save();ctx.beginPath();ctx.roundRect(x,y,w,h,radius);ctx.clip();rect(x,y,w,h,p.plate);
+      if(v.avatar){const scale=Math.max(w/v.avatar.width,h/v.avatar.height)*v.zoom,iw=v.avatar.width*scale,ih=v.avatar.height*scale;ctx.drawImage(v.avatar,x+(w-iw)/2-(v.x/100)*(iw-w)/2,y+(h-ih)/2-(v.y/100)*(ih-h)/2,iw,ih);}
+      else if(initial)text(chars(v.name||'P')[0],x+w/2,y+h*.2,Math.min(w,h)*.58,p.ink,700,T.fonts.sans,'center');
+      ctx.restore();if(border){ctx.beginPath();ctx.roundRect(x+.5,y+.5,w-1,h-1,radius);ctx.strokeStyle=border;ctx.lineWidth=1;ctx.stroke();}
     }
-    function shape(x,y,w,h,type='cut') {
-      ctx.beginPath();
-      if(type==='circle'){ctx.ellipse(x+w/2,y+h/2,w/2,h/2,0,0,Math.PI*2);return;}
-      if(type==='rounded'){ctx.roundRect(x,y,w,h,Math.min(w,h)*.14);return;}
-      const cut=type==='sticker'?18:32;
-      const points=type==='sticker'?[[12,4],[w-18,0],[w,20],[w-4,h-12],[w-25,h],[0,h-20]]:[[cut,0],[w,0],[w,h-cut],[w-cut,h],[0,h],[0,cut]];
-      points.forEach(([px,py],i)=>i?ctx.lineTo(x+px,y+py):ctx.moveTo(x+px,y+py));ctx.closePath();
-    }
-    function avatar(x,y,w,h,{type='cut',angle=-T.card.tilt,frame=p.plate,stroke=p.stroke,shadow=false}={}) {
-      ctx.save();ctx.translate(x+w/2,y+h/2);ctx.rotate(angle*Math.PI/180);const left=-w/2,top=-h/2;
-      if(shadow){ctx.shadowColor=T.texture.shadow;ctx.shadowBlur=12;ctx.shadowOffsetX=8;ctx.shadowOffsetY=10;}
-      shape(left-10,top-10,w+20,h+20,type);ctx.fillStyle=frame;ctx.fill();ctx.shadowColor=T.colors.clear;
-      ctx.strokeStyle=stroke;ctx.lineWidth=3;ctx.stroke();
-      ctx.save();shape(left,top,w,h,type);ctx.clip();rect(left,top,w,h,p.plate);
-      if(values.avatar){const image=values.avatar;const scale=Math.max(w/image.width,h/image.height)*values.zoom;const iw=image.width*scale,ih=image.height*scale;ctx.drawImage(image,left+(w-iw)/2-(values.x/100)*(iw-w)/2,top+(h-ih)/2-(values.y/100)*(ih-h)/2,iw,ih);}
-      else {const initial=chars(values.name||'P')[0];ctx.font=`900 ${Math.min(w,h)*.66}px ${T.fonts.sans}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=p.ink;ctx.fillText(initial,0,0,Math.min(w,h)*.85);}
-      ctx.restore();ctx.restore();
-    }
-    function halftone(x,y,w,h,color=p.secondary,alpha=.55,step=15,r=2.7) {ctx.save();ctx.globalAlpha=alpha;ctx.fillStyle=color;for(let row=0;row<h/step;row++)for(let col=0;col<w/step;col++){ctx.beginPath();ctx.arc(x+col*step+(row%2)*step/2,y+row*step,r,0,Math.PI*2);ctx.fill();}ctx.restore();}
-    function rotated(x,y,angle,fn) {ctx.save();ctx.translate(x,y);ctx.rotate(angle*Math.PI/180);fn();ctx.restore();}
-    function star(x,y,r,color=p.primary) {ctx.save();ctx.translate(x,y);ctx.beginPath();for(let i=0;i<16;i++){const a=i*Math.PI/8;const radius=i%2?r*.53:r;const px=Math.cos(a)*radius,py=Math.sin(a)*radius;i?ctx.lineTo(px,py):ctx.moveTo(px,py);}ctx.closePath();ctx.fillStyle=color;ctx.fill();ctx.restore();}
-    let values;
-    return {rect,line,box,text,fit,name,cropMarks,barcode,header,footer,status,fields,shape,avatar,halftone,rotated,star,setValues:v=>{values=v;}};
+    function box(x,y,w,h,color=p.plate){rect(x,y,w,h,color);ctx.strokeStyle=p.stroke;ctx.lineWidth=1;ctx.strokeRect(x+.5,y+.5,w-1,h-1);}
+    function cropMarks(){const m=24,s=32;[[m,m,1,1],[1600-m,m,-1,1],[m,1000-m,1,-1],[1600-m,1000-m,-1,-1]].forEach(([x,y,dx,dy])=>{line(x-10*dx,y,x+s*dx,y);line(x,y-10*dy,x,y+s*dy);});}
+    function barcode(x=1280,y=928,w=248,h=34){let n=71;for(let i=0;i<w;){n=(Math.imul(n,1103515245)+12345)>>>0;const bar=2+n%4;rect(x+i,y,bar,h-(i%7===0?6:0),p.ink);i+=bar+2+n%3;}}
+    function header(){text('MODEL SHEET',64,47,22,p.muted,600,T.fonts.mono);text(C.communityEnglish,64,92,42,p.ink,700);text(v.issuedDate,1280,92,22,p.muted,500,T.fonts.mono);}
+    return {rect,line,text,fit,name,avatar,box,cropMarks,barcode,header};
   }
 
+  function drawMark(ctx,{x=0,y=0,width=400,height=width,light}={}) {
+    ctx.save();ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(material('chrome',light),x,y,width,height);ctx.restore();
+  }
   function liquid(ctx,h,p,v) {
     h.rect(0,0,1600,1000,p.paper);
-    // Curved silhouettes and narrow specular bands create liquid metal without assets.
-    const metal=ctx.createLinearGradient(1135,230,1510,565);
-    p.metal.forEach((color,i)=>metal.addColorStop(i/(p.metal.length-1),color));
-    ctx.save();ctx.shadowColor=p.secondary;ctx.shadowBlur=24;
-    ctx.beginPath();ctx.moveTo(1258,237);
-    ctx.bezierCurveTo(1330,213,1343,275,1430,249);
-    ctx.bezierCurveTo(1531,217,1568,306,1525,371);
-    ctx.bezierCurveTo(1492,423,1559,469,1499,538);
-    ctx.bezierCurveTo(1450,594,1385,549,1314,579);
-    ctx.bezierCurveTo(1210,617,1163,552,1201,487);
-    ctx.bezierCurveTo(1238,426,1135,403,1168,330);
-    ctx.bezierCurveTo(1186,291,1223,249,1258,237);ctx.closePath();
-    ctx.fillStyle=metal;ctx.fill();ctx.shadowBlur=0;ctx.lineWidth=2;ctx.strokeStyle=p.secondary;ctx.stroke();
-    const rim=ctx.createLinearGradient(1200,260,1490,550);
-    rim.addColorStop(0,p.secondary);rim.addColorStop(.45,p.paper);rim.addColorStop(.54,p.ink);rim.addColorStop(1,p.primary);
-    ctx.beginPath();ctx.moveTo(1233,301);ctx.bezierCurveTo(1300,243,1354,328,1443,279);ctx.bezierCurveTo(1538,278,1445,390,1474,458);ctx.bezierCurveTo(1513,555,1363,509,1300,558);
-    ctx.strokeStyle=rim;ctx.lineWidth=13;ctx.stroke();
-    ctx.beginPath();ctx.moveTo(1221,349);ctx.bezierCurveTo(1184,423,1303,443,1247,514);ctx.strokeStyle=p.secondary;ctx.lineWidth=4;ctx.stroke();ctx.restore();
-    h.header();h.cropMarks();
-    h.name(v.name,{x:T.card.margin,y:265,w:1080,h:304});
-    h.avatar(1245,302,244,244,{type:'circle',angle:0,frame:metal,stroke:p.secondary});
-    h.status(v.status,1230,600,300);h.fields();h.footer();
-    h.line(T.card.margin,570,1040,570,p.primary,2);
+    h.text(C.communityEnglish,88,70,30,p.ink,600);
+    // Brand sculpture occupies the upper-right; identity reads across an open lower field.
+    drawMark(ctx,{x:892,y:40,width:638,height:638,light:v.light});
+    if(v.avatar)h.avatar(88,229,270,270,{radius:135,border:p.secondary});
+    h.name({x:88,y:598,w:1424,h:230});
+    h.fit(v.message||'はじめまして。',{x:92,y:862,w:1270,h:100},{size:38,min:24,maxLines:3,color:p.ink,weight:400});
   }
-
-  function sticker(ctx,h,p,v) {
-    h.rect(0,0,1600,1000,p.paper);h.cropMarks();h.header({rule:false});
-    h.rotated(1150,185,-8,()=>{h.box(0,0,330,66,p.secondary,p.plate,12);h.text('HELLO, INTERNET!',16,14,T.type.cardMarker,p.plate,800,T.fonts.mono);});
-    h.rotated(600,416,-1.3,()=>{
-      ctx.shadowColor=T.texture.shadow;ctx.shadowBlur=14;ctx.shadowOffsetX=6;ctx.shadowOffsetY=10;
-      h.shape(-565,-173,1155,350,'sticker');ctx.fillStyle=p.plate;ctx.fill();ctx.shadowColor=T.colors.clear;ctx.strokeStyle=p.primary;ctx.lineWidth=3;ctx.stroke();
-      h.name(v.name,{x:-540,y:-140,w:1080,h:300},{color:p.ink});
-    });
-    h.avatar(1246,308,248,248,{type:'sticker',angle:2,frame:p.plate,stroke:p.plate,shadow:true});
-    h.star(1450,720,54,p.primary);h.star(1110,200,40,p.secondary);
-    if(v.title)h.rotated(66,584,.8,()=>{h.box(-8,-4,Math.min(1100,Math.max(470,chars(v.title).length*36+32)),66,p.primary,p.plate,9);h.fit(v.title,{x:10,y:8,w:1040,h:48},{size:T.type.cardTitle,min:T.type.cardMinTitle,maxLines:1,weight:800});});
-    h.status(v.status,1210,616,310);
-    h.fields({showTitle:false,likesY:712,messageY:834});
-    ctx.save();ctx.strokeStyle=p.secondary;ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(70,190);ctx.bezierCurveTo(92,157,125,220,153,190);ctx.bezierCurveTo(180,155,214,220,241,187);ctx.stroke();ctx.restore();
-    h.footer();
-  }
-
-  function poster(ctx,h,p,v) {
-    h.rect(0,0,1600,1000,p.paper);h.header({rule:false});h.cropMarks();
-    h.line(T.card.margin,188,(T.card.width-T.card.margin),188,p.ink,4);h.text('PERSON / 01',T.card.margin,210,T.type.cardMeta,p.ink,700,T.fonts.mono);
-    h.name(v.name,{x:-16,y:258,w:1630,h:313},{size:T.type.cardName*1.3,min:T.type.cardNameMin,maxLines:2,color:p.ink});
-    h.rect(0,594,1600,74,p.primary);h.text(v.status||C.communityEnglish,T.card.margin,610,T.type.cardStrip,p.ink,900,T.fonts.mono);h.text('MEMBER / PRINT',1210,620,T.type.cardMeta,p.ink,700,T.fonts.mono);
-    if(v.title)h.fit(v.title,{x:T.card.margin,y:700,w:1100,h:52},{size:T.type.cardTitleLarge,min:T.type.cardMinLarge,maxLines:1,weight:800});
-    h.text('THINGS I LOVE',T.card.margin,770,T.type.cardLabel,p.muted,700,T.fonts.mono);
-    h.fit(v.likes||'雑談 / ゲーム / すきなこと',{x:T.card.margin,y:807,w:1130,h:65},{size:T.type.cardDense,min:T.type.cardMin,weight:600});
-    h.text('SAY HELLO',T.card.margin,890,T.type.cardLabel,p.muted,700,T.fonts.mono);
-    h.fit(v.message||'はじめまして。よろしくね。',{x:290,y:885,w:900,h:60},{size:T.type.cardStatus,min:T.type.cardMin,weight:500});
-    h.avatar(1300,700,210,210,{type:'cut',angle:0,frame:p.ink,stroke:p.ink});h.footer();
-  }
-
   function idol(ctx,h,p,v) {
     h.rect(0,0,1600,1000,p.paper);
-    const foil=ctx.createLinearGradient(0,100,1600,950);
-    p.foil.forEach((color,i)=>foil.addColorStop(i/(p.foil.length-1),color));
-    h.rect(24,24,1552,952,foil);
-    ctx.save();ctx.strokeStyle=p.stroke;ctx.lineWidth=2;ctx.strokeRect(36,36,1528,928);
-    ctx.globalAlpha=.22;
-    for(let x=-600;x<2000;x+=98)h.line(x,24,x+700,976,p.plate,22);
-    ctx.restore();
-    h.box(T.card.margin,210,1100,374,p.plate,p.stroke,2);
-    h.name(v.name,{x:88,y:268,w:1052,h:290});
-    h.header({rule:false});
-    h.avatar(1235,246,274,310,{type:'rounded',angle:0,frame:p.plate,stroke:p.stroke});
-    h.star(1498,222,29,p.ink);h.star(1193,561,22,p.ink);
-    h.status(v.status,1210,608,310);
-    h.fields({x:88,width:1424,y:610,likesY:710,messageY:836});
-    h.footer();
+    ctx.save();ctx.beginPath();ctx.roundRect(30,30,1540,940,42);ctx.clip();ctx.drawImage(material('foil',v.light),30,30,1540,940);ctx.restore();
+    ctx.beginPath();ctx.roundRect(30.5,30.5,1539,939,42);ctx.strokeStyle='#ffffff';ctx.lineWidth=1;ctx.stroke();
+    h.text(C.communityEnglish,800,74,30,p.ink,600,T.fonts.sans,'center');
+    if(v.avatar){
+      h.avatar(624,180,352,380,{radius:176,border:'#ffffff'});
+      brandGlyph(ctx,'P*',1395,142,82,p.ink);
+    } else brandGlyph(ctx,'P*',800,477,292,p.ink,{align:'center'});
+    h.name({x:100,y:605,w:1400,h:228},{align:'center'});
+    h.fit(v.message||'はじめまして。',{x:280,y:856,w:1040,h:102},{size:36,min:24,maxLines:3,color:p.ink,weight:400,align:'center'});
   }
-
   function setting(ctx,h,p,v) {
-    h.rect(0,0,1600,1000,p.paper);h.header({rule:false});h.cropMarks();
-    h.box(T.card.margin,210,1472,420,p.plate,p.stroke,2);
+    h.rect(0,0,1600,1000,p.paper);h.header();h.cropMarks();brandGlyph(ctx,'P*',1450,147,72,p.ink);
+    h.box(64,210,1472,420);
     ctx.save();ctx.globalAlpha=.18;
-    for(let x=88;x<1160;x+=64)h.line(x,250,x,610,p.stroke,1);
-    for(let y=250;y<620;y+=64)h.line(88,y,1160,y,p.stroke,1);
-    ctx.restore();
-    h.text('CHARACTER NAME / 名前',88,230,T.type.cardLabel,p.muted,700,T.fonts.mono);
-    h.name(v.name,{x:88,y:286,w:1060,h:278},{font:T.fonts.mono});
-    h.text('REFERENCE / 参考',1200,230,T.type.cardLabel,p.muted,700,T.fonts.mono);
-    h.avatar(1260,282,210,210,{type:'cut',angle:0,frame:p.plate,stroke:p.stroke});
-    // Empty turnaround guides suggest an animation model sheet; the icon is only a reference.
-    ['FRONT','SIDE','BACK'].forEach((label,i)=>{
-      const x=1200+i*104;
-      h.box(x,524,90,48,p.paper,p.stroke,1);
-      h.line(x+45,530,x+45,566,p.stroke,1);h.line(x+15,548,x+75,548,p.stroke,1);
-      h.text(label,x+7,580,T.type.cardMin,p.muted,700,T.fonts.mono);
-    });
-    const columns=[{x:64,w:460,label:'01 / PROFILE',value:v.title||'—'}, {x:554,w:460,label:'02 / LIKES',value:v.likes||'雑談 / ゲーム / すきなこと'}, {x:1044,w:492,label:'03 / NOTE',value:v.message||'はじめまして。よろしくね。'}];
-    columns.forEach((column,i)=>{
-      h.box(column.x,660,column.w,240,p.plate,p.stroke,2);
-      h.text(column.label,column.x+24,682,T.type.cardLabel,p.muted,700,T.fonts.mono);
-      h.fit(column.value,{x:column.x+24,y:728,w:column.w-48,h:i===0?100:152},{size:i===0?T.type.cardDense:T.type.cardStatus,min:T.type.cardMinLabel,maxLines:i===0?2:4,font:T.fonts.mono});
-    });
-    if(v.status)h.fit(v.status,{x:88,y:848,w:412,h:38},{size:T.type.cardStatus,min:T.type.cardMinSmall,maxLines:1,font:T.fonts.mono,color:p.muted});
-    const chips=[p.ink,p.secondary,p.primary,p.paper,p.plate,p.stroke];
-    h.text('COLOR',856,608,T.type.cardMin,p.muted,700,T.fonts.mono);
-    chips.forEach((color,i)=>h.box(942+i*35,606,27,20,color,p.stroke,1));
-    h.footer();
+    for(let x=88;x<1160;x+=64)h.line(x,250,x,610);
+    for(let y=250;y<620;y+=64)h.line(88,y,1160,y);ctx.restore();
+    h.text('CHARACTER NAME / 名前',88,230,24,p.muted,600,T.fonts.mono);
+    h.name({x:88,y:286,w:1060,h:278},{font:T.fonts.mono});
+    h.text('REFERENCE / 参考',1200,230,24,p.muted,600,T.fonts.mono);
+    h.avatar(1260,282,210,210,{radius:0,initial:true});
+    ['FRONT','SIDE','BACK'].forEach((label,i)=>{const x=1200+i*104;h.box(x,524,90,48,p.paper);h.line(x+45,530,x+45,566);h.line(x+15,548,x+75,548);h.text(label,x+7,580,20,p.muted,600,T.fonts.mono);});
+    const columns=[{x:64,w:460,label:'01 / PROFILE',value:v.title||'—'},{x:554,w:460,label:'02 / LIKES',value:v.likes||'—'},{x:1044,w:492,label:'03 / NOTE',value:v.message||'はじめまして。'}];
+    columns.forEach((column,i)=>{h.box(column.x,660,column.w,240);h.text(column.label,column.x+24,682,24,p.muted,600,T.fonts.mono);h.fit(column.value,{x:column.x+24,y:728,w:column.w-48,h:i===0?100:152},{size:i===0?31:28,min:24,maxLines:i===0?2:4,font:T.fonts.mono});});
+    if(v.status)h.fit(v.status,{x:88,y:848,w:412,h:38},{size:28,min:22,maxLines:1,font:T.fonts.mono,color:p.muted});
+    [p.ink,p.secondary,p.primary,p.paper,p.plate,p.stroke].forEach((color,i)=>h.box(942+i*35,606,27,20,color));
+    h.barcode();
+    ctx.save();ctx.globalAlpha=T.texture.sheetOpacity;
+    if(!paperPatterns.has(ctx))paperPatterns.set(ctx,ctx.createPattern(noise,'repeat'));ctx.fillStyle=paperPatterns.get(ctx);ctx.fillRect(0,0,1600,1000);ctx.restore();
   }
-
-  function glass(ctx,h,p,v) {
-    const background=ctx.createLinearGradient(0,0,1600,1000);
-    background.addColorStop(0,p.paper);background.addColorStop(1,p.plate);
-    h.rect(0,0,1600,1000,background);
-    const glow=(x,y,r,color)=>{const gradient=ctx.createRadialGradient(x,y,0,x,y,r);gradient.addColorStop(0,color+'90');gradient.addColorStop(1,color+'00');h.rect(x-r,y-r,r*2,r*2,gradient);};
-    glow(1350,290,510,p.primary);glow(1180,1000,560,p.secondary);
-    ctx.save();ctx.beginPath();ctx.roundRect(88,236,1430,650,48);ctx.fillStyle=p.paper+'75';ctx.fill();ctx.strokeStyle=p.secondary+'66';ctx.lineWidth=2;ctx.stroke();
-    ctx.beginPath();ctx.roundRect(64,210,1472,690,48);
-    const surface=ctx.createLinearGradient(64,210,1536,900);
-    surface.addColorStop(0,p.plate+'f0');surface.addColorStop(.7,p.paper+'d9');surface.addColorStop(1,p.plate+'e8');
-    ctx.fillStyle=surface;ctx.fill();ctx.strokeStyle=p.secondary+'b0';ctx.stroke();
-    h.line(104,213,1450,213,p.ink+'80',2);ctx.restore();
-    h.header({rule:false});
-    h.name(v.name,{x:100,y:276,w:1040,h:288});
-    h.avatar(1234,286,244,244,{type:'rounded',angle:0,frame:p.plate,stroke:p.stroke});
-    h.status(v.status,1210,602,290);
-    h.fields({x:100,width:1400,y:608,likesY:710,messageY:820});
-    h.footer();
-  }
-
-  const patterns=new WeakMap();
   function draw(ctx,key,values) {
-    const p=T.styles[key];
+    const palette=T.styles[key];if(!palette)throw new Error('Unknown card style');
     ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);ctx.scale(ctx.canvas.width/T.card.width,ctx.canvas.height/T.card.height);
-    ctx.textAlign='left';ctx.textBaseline='top';ctx.imageSmoothingQuality='high';
-    const h=helpers(ctx,p);h.setValues(values);
-    ({'y3k-liquid':liquid,'holo-idol':idol,'setting-sheet':setting,'sticker-bomb':sticker,glass,'type-poster':poster})[key](ctx,h,p,values);
-    const opacity={'y3k-liquid':T.texture.liquidOpacity,'holo-idol':T.texture.holoOpacity,'setting-sheet':T.texture.sheetOpacity,glass:T.texture.glassOpacity};
-    ctx.save();ctx.globalAlpha=opacity[key]??T.texture.cardOpacity;
-    ctx.globalCompositeOperation=key==='y3k-liquid'||key==='glass'?'source-over':'multiply';
-    if(!patterns.has(ctx))patterns.set(ctx,ctx.createPattern(noise,'repeat'));ctx.fillStyle=patterns.get(ctx);ctx.fillRect(0,0,1600,1000);ctx.restore();
+    ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+    const h=helpers(ctx,palette,values);
+    ({'y3k-liquid':liquid,'holo-idol':idol,'setting-sheet':setting})[key](ctx,h,palette,values);
     ctx.restore();
   }
-  window.TACTILE_RENDERER=Object.freeze({draw});
+  window.TACTILE_RENDERER=Object.freeze({draw,drawMark});
 })();
